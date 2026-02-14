@@ -1,4 +1,6 @@
 import asyncio
+import traceback
+import sys
 from aiogram import Bot, Dispatcher, F
 from aiogram.types import Message
 from aiogram.filters import CommandStart, Command
@@ -7,14 +9,17 @@ from aiogram.client.default import DefaultBotProperties
 from config import BOT_TOKEN, MESSAGES
 from gemini import generate_ai_response
 
-if not BOT_TOKEN:
-    print("❌ BOT_TOKEN muhit o'zgaruvchisi o'rnatilmagan.\nIltimos Railway yoki mahalliy muhitda BOT_TOKEN ni sozlang.")
-    raise SystemExit(1)
+# Delay Bot construction so missing BOT_TOKEN doesn't crash the process on import.
+bot = None
+if BOT_TOKEN:
+    bot = Bot(
+        token=BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
+else:
+    # Log a clear message but do NOT exit; keep the process alive so Railway won't restart it.
+    print("❌ BOT_TOKEN muhit o'zgaruvchisi o'rnatilmagan.\nIltimos Railway yoki mahalliy muhitda BOT_TOKEN ni sozlang.\nBot polling boshlamaydi.")
 
-bot = Bot(
-    token=BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-)
 dp = Dispatcher()
 
 
@@ -71,16 +76,24 @@ async def main():
     print("To'xtatish uchun Ctrl+C bosing")
 
     try:
+        # If bot wasn't constructed because BOT_TOKEN is missing, don't call start_polling.
+        if not bot:
+            print("Bot token topilmadi — polling boshlamaydi. Ilovaga BOT_TOKEN qo'shilishini kutyapmiz.")
+            # Block forever (keep container alive) until vars are fixed and process restarted.
+            await asyncio.Event().wait()
+        else:
+            await dp.start_polling(bot)
 
-        await dp.start_polling(bot)
-
-    except Exception as e:
-        print(f"❌ Xatolik: {e}")
+    except Exception:
+        print("❌ Xatolik yuz berdi. To'liq traceback quyida:")
+        traceback.print_exc()
         print("API key larni tekshiring!")
+        sys.exit(1)
     except KeyboardInterrupt:
         print("\n👋 Bot to'xtatildi!")
     finally:
-        await bot.session.close()
+        if bot:
+            await bot.session.close()
 
 
 if __name__ == "__main__":
