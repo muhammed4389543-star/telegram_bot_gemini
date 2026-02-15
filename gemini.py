@@ -1,5 +1,6 @@
 
 from google.generativeai import configure, GenerativeModel #type: ignore
+from datetime import datetime
 
 from config import GEMINI_API_KEY, GEMINI_MODEL
 
@@ -10,7 +11,9 @@ _gemini_configured = False
 if GEMINI_API_KEY:
     try:
         configure(api_key=GEMINI_API_KEY)
-        model = GenerativeModel(GEMINI_MODEL)
+        # Enable Google Search retrieval tool so the model can look up
+        # facts and current events on the web.
+        model = GenerativeModel(GEMINI_MODEL, tools=[{"google_search_retrieval": {}}])
         _gemini_configured = True
     except Exception as e:
         print(f"Gemini init error: {e}")
@@ -27,7 +30,17 @@ async def generate_ai_response(user_text):
 
     try:
         # Gemini ga so'rov yuborish
-        response = model.generate_content(user_text)
+        # Include a dynamic system instruction with the current local datetime
+        # so the model can reference the real current date/time when answering.
+        now = datetime.now()
+        system_instruction = f"Hozirgi sana va vaqt: {now.isoformat()}"
+
+        # Some versions of the Google Generative API client may not accept a
+        # `system_instruction` named parameter on generate_content. To avoid
+        # compatibility errors we prepend the system instruction into the
+        # prompt sent to the model instead of passing it as a separate arg.
+        prompt = f"[SYSTEM INSTRUCTION]\n{system_instruction}\n\n{user_text}"
+        response = model.generate_content(prompt)
 
         # Javobni olish
         if response and getattr(response, 'text', None):
