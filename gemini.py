@@ -11,12 +11,37 @@ _gemini_configured = False
 if GEMINI_API_KEY:
     try:
         configure(api_key=GEMINI_API_KEY)
-        # Enable Google Search tool so the model can look up
-        # facts and current events on the web.
-        # Note: older/other tool names like "google_search_retrieval" may be
-        # unsupported by the deployed API version — use "google_search".
-        model = GenerativeModel(GEMINI_MODEL, tools=[{"google_search": {}}])
-        _gemini_configured = True
+
+        # Try a few tool names in order of preference. The original
+        # requirement asked for "google_search_retrieval"; some API
+        # versions accept "google_search" instead. If none work we fall
+        # back to creating the model without tools so the bot can run.
+        tool_candidates = [
+            {"google_search_retrieval": {}},
+            {"google_search": {}},
+        ]
+
+        created = False
+        last_exc = None
+        for t in tool_candidates:
+            try:
+                model = GenerativeModel(GEMINI_MODEL, tools=[t])
+                _gemini_configured = True
+                print(f"Gemini init: model created with tools={list(t.keys())}")
+                created = True
+                break
+            except Exception as e:
+                print(f"Gemini init: failed to create with tools={list(t.keys())}: {e}")
+                last_exc = e
+
+        if not created:
+            try:
+                model = GenerativeModel(GEMINI_MODEL)
+                _gemini_configured = True
+                print("Gemini init: model created without tools (search disabled).")
+            except Exception as e:
+                print(f"Gemini init error: {e}")
+                _gemini_configured = False
     except Exception as e:
         print(f"Gemini init error: {e}")
         _gemini_configured = False
