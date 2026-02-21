@@ -16,9 +16,10 @@ if GEMINI_API_KEY:
         # requirement asked for "google_search_retrieval"; some API
         # versions accept "google_search" instead. If none work we fall
         # back to creating the model without tools so the bot can run.
+        # Prefer the API-recommended tool name first to avoid runtime 400s.
         tool_candidates = [
-            {"google_search_retrieval": {}},
             {"google_search": {}},
+            {"google_search_retrieval": {}},
         ]
 
         created = False
