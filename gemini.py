@@ -11,9 +11,11 @@ _gemini_configured = False
 if GEMINI_API_KEY:
     try:
         configure(api_key=GEMINI_API_KEY)
-        # Enable Google Search retrieval tool so the model can look up
+        # Enable Google Search tool so the model can look up
         # facts and current events on the web.
-        model = GenerativeModel(GEMINI_MODEL, tools=[{"google_search_retrieval": {}}])
+        # Note: older/other tool names like "google_search_retrieval" may be
+        # unsupported by the deployed API version — use "google_search".
+        model = GenerativeModel(GEMINI_MODEL, tools=[{"google_search": {}}])
         _gemini_configured = True
     except Exception as e:
         print(f"Gemini init error: {e}")
